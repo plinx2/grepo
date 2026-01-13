@@ -70,10 +70,11 @@ func validateField(v reflect.Value, f *refl.Field, validators ...FieldValidator)
 		rv = rv.Elem()
 	}
 
-	vs := make([]FieldValidator, 0, len(validators)+2)
+	vs := make([]FieldValidator, 0, len(validators)+3)
 	vs = append(vs, validators...)
 	vs = append(vs, FieldValidatorFunc(validateOptional))
 	vs = append(vs, FieldValidatorFunc(validateEnum))
+	vs = append(vs, FieldValidatorFunc(validateMinMax))
 
 	for _, validator := range vs {
 		if err := validator.Validate(rv, f); err != nil {
@@ -91,6 +92,20 @@ func validateField(v reflect.Value, f *refl.Field, validators ...FieldValidator)
 func validateOptional(v reflect.Value, f *refl.Field) error {
 	if f.Optional {
 		return nil
+	}
+	switch {
+	case v.CanInt():
+		if v.Int() == 0 {
+			return nil
+		}
+	case v.CanUint():
+		if v.Uint() == 0 {
+			return nil
+		}
+	case v.Kind() == reflect.Float32 || v.Kind() == reflect.Float64:
+		if v.Float() == 0 {
+			return nil
+		}
 	}
 	if v.IsZero() {
 		return fmt.Errorf("field %s is required but zero", f.Field)
@@ -133,4 +148,40 @@ func validateEnum(v reflect.Value, f *refl.Field) error {
 		}
 	}
 	return fmt.Errorf("field %s has value %s which is not in enum %v", f.Field, v.String(), f.Enum)
+}
+
+func validateMinMax(v reflect.Value, f *refl.Field) error {
+	if f.Min != nil {
+		switch {
+		case v.CanInt():
+			if v.Int() < int64(*f.Min) {
+				return fmt.Errorf("field %s has value %d which is less than min %d", f.Field, v.Int(), *f.Min)
+			}
+		case v.CanUint():
+			if v.Uint() < uint64(*f.Min) {
+				return fmt.Errorf("field %s has value %d which is less than min %d", f.Field, v.Uint(), *f.Min)
+			}
+		case v.Kind() == reflect.Float32 || v.Kind() == reflect.Float64:
+			if v.Float() < float64(*f.Min) {
+				return fmt.Errorf("field %s has value %f which is less than min %d", f.Field, v.Float(), *f.Min)
+			}
+		}
+	}
+	if f.Max != nil {
+		switch {
+		case v.CanInt():
+			if v.Int() > int64(*f.Max) {
+				return fmt.Errorf("field %s has value %d which is greater than max %d", f.Field, v.Int(), *f.Max)
+			}
+		case v.CanUint():
+			if v.Uint() > uint64(*f.Max) {
+				return fmt.Errorf("field %s has value %d which is greater than max %d", f.Field, v.Uint(), *f.Max)
+			}
+		case v.Kind() == reflect.Float32 || v.Kind() == reflect.Float64:
+			if v.Float() > float64(*f.Max) {
+				return fmt.Errorf("field %s has value %f which is greater than max %d", f.Field, v.Float(), *f.Max)
+			}
+		}
+	}
+	return nil
 }

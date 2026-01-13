@@ -1,6 +1,7 @@
 package refl
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -11,6 +12,8 @@ type Field struct {
 	Optional bool     `json:",omitempty"`
 	Enum     []string `json:",omitempty"`
 	Custom   []string `json:",omitempty"`
+	Min      *int     `json:",omitempty"`
+	Max      *int     `json:",omitempty"`
 	parent   *Type
 }
 
@@ -71,6 +74,18 @@ func TypeFor(t reflect.Type) *Type {
 						enumValues[i] = strings.TrimSpace(enumValues[i])
 					}
 					f.Enum = enumValues
+				case "min", "max":
+					value := strings.TrimSpace(kv[1])
+					if value != "" {
+						var mv int
+						fmt.Sscanf(value, "%d", &mv)
+						if kv[0] == "max" {
+							f.Max = &mv
+							continue
+						}
+						f.Min = &mv
+					}
+
 				case "custom":
 					customValues := strings.Split(kv[1], ",")
 					for i := range customValues {
