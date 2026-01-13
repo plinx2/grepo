@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -412,6 +413,41 @@ func TestAPI_WithHooks(t *testing.T) {
 			input:     TestInput{Value: 1000},
 			wantOrder: []string{"before1", "before2", "before3", "after1", "after2"},
 			wantErr:   false,
+		},
+		{
+			name: "異常系: ユースケースフックでエラー",
+			setupAPI: func(t *testing.T) (*API, *[]string) {
+				order := &[]string{}
+				uc := NewUseCaseBuilder(&addOneUseCase{}).
+					WithOperation("add_one").
+					AddBeforeHook(func(ctx context.Context, i *TestInput) (context.Context, error) {
+						*order = append(*order, "before3")
+						return ctx, fmt.Errorf("error in before hook")
+					}).
+					AddErrorHook(func(ctx context.Context, i TestInput, err error) {
+						*order = append(*order, "error2")
+					}).
+					Build()
+				api := NewAPIBuilder().
+					AddUseCase(uc).
+					AddBeforeHook(func(ctx context.Context, desc Descriptor, i any) (context.Context, error) {
+						*order = append(*order, "before1")
+						return ctx, nil
+					}).
+					AddBeforeHook(func(ctx context.Context, desc Descriptor, i any) (context.Context, error) {
+						*order = append(*order, "before2")
+						return ctx, nil
+					}).
+					AddErrorHook(func(ctx context.Context, desc Descriptor, i any, e error) {
+						*order = append(*order, "error1")
+					}).
+					Build()
+				return api, order
+			},
+			operation: "add_one",
+			input:     TestInput{Value: 5},
+			wantOrder: []string{"before1", "before2", "before3", "error1", "error2"},
+			wantErr:   true,
 		},
 	}
 
