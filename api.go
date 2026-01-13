@@ -138,7 +138,6 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	ptr := reflect.New(reflect.ValueOf(input).Type())
 	ptr.Elem().Set(reflect.ValueOf(input))
 	inputPtr := ptr.Interface()
-	input = ptr.Elem().Interface()
 
 	groups := append([]*Group{a.root}, uc.Groups()...)
 
