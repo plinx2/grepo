@@ -1,0 +1,36 @@
+package usecase
+
+import (
+	"context"
+
+	"github.com/plinx2/grepo"
+	"github.com/plinx2/grepo/example/entity"
+	"github.com/plinx2/grepo/example/port"
+)
+
+const FindUsersOperation = "FindUsers"
+
+type FindUsersInput struct {
+	IDs  []string `grepo:"optional:true"`
+	Name string   `grepo:"optional:true"`
+}
+
+type FindUsersOutput struct {
+	Users []*entity.User `grepo:"optional:true"`
+}
+
+type FindUsers struct {
+	repoUser port.RepoUser
+}
+
+func NewFindUsers(repoUser port.RepoUser) grepo.Executor[FindUsersInput, FindUsersOutput] {
+	return &FindUsers{
+		repoUser: repoUser,
+	}
+}
+
+func (uc *FindUsers) Execute(ctx context.Context, input FindUsersInput) (*FindUsersOutput, error) {
+	return &FindUsersOutput{
+		Users: []*entity.User{},
+	}, nil
+}
