@@ -228,7 +228,22 @@ func (b *APIBuilder) WithHook(hook *GroupHook) *APIBuilder {
 	return b
 }
 
-func (b *APIBuilder) WithUseCase(d Descriptor) *APIBuilder {
+func (b *APIBuilder) AddBeforeHook(hook BeforeHook) *APIBuilder {
+	b.api.root.hook.AddBefore(hook)
+	return b
+}
+
+func (b *APIBuilder) AddAfterHook(hook AfterHook) *APIBuilder {
+	b.api.root.hook.AddAfter(hook)
+	return b
+}
+
+func (b *APIBuilder) AddErrorHook(hook ErrorHook) *APIBuilder {
+	b.api.root.hook.AddError(hook)
+	return b
+}
+
+func (b *APIBuilder) AddUseCase(d Descriptor) *APIBuilder {
 	op := d.Operation()
 	b.api.m[op] = d
 	return b

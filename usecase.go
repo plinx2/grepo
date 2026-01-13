@@ -206,6 +206,21 @@ func (b *UseCaseBuilder[I, O]) WithHook(hook *UseCaseHook[I, O]) *UseCaseBuilder
 	return b
 }
 
+func (b *UseCaseBuilder[I, O]) AddBeforeHook(hook func(ctx context.Context, i *I) (context.Context, error)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddBefore(hook)
+	return b
+}
+
+func (b *UseCaseBuilder[I, O]) AddAfterHook(hook func(ctx context.Context, i I, o *O)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddAfter(hook)
+	return b
+}
+
+func (b *UseCaseBuilder[I, O]) AddErrorHook(hook func(ctx context.Context, i I, err error)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddError(hook)
+	return b
+}
+
 func (b *UseCaseBuilder[I, O]) WithGroup(group *Group) *UseCaseBuilder[I, O] {
 	b.uc.groups = append(b.uc.groups, group)
 	return b

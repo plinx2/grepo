@@ -16,14 +16,11 @@ func NewAPI(
 	getUser grepo.Executor[usecase.GetUserInput, usecase.GetUserOutput],
 	saveUser grepo.Executor[usecase.SaveUserInput, usecase.SaveUserOutput],
 ) *grepo.API {
-	rootHook := grepo.NewGroupHook()
-	rootHook.AddBefore(hooks.HookBeforeSlog())
-	rootHook.AddAfter(hooks.HookAfterSlog())
-	rootHook.AddError(hooks.HookErrorSlog())
-
 	return grepo.NewAPIBuilder().
 		WithDescription("API example").
-		WithHook(rootHook).
+		AddBeforeHook(hooks.HookBeforeSlog()).
+		AddAfterHook(hooks.HookAfterSlog()).
+		AddErrorHook(hooks.HookErrorSlog()).
 		WithOptions(
 			grepo.WithEnableInputValidation(),
 			grepo.WithEnableOutputValidation(),
@@ -32,22 +29,22 @@ func NewAPI(
 				return nil
 			}))),
 		).
-		WithUseCase(
+		AddUseCase(
 			grepo.NewUseCaseBuilder(findUser).
 				Build(),
 		).
-		WithUseCase(
+		AddUseCase(
 			grepo.NewUseCaseBuilder(getUser).
 				Build(),
 		).
-		WithUseCase(
+		AddUseCase(
 			grepo.NewUseCaseBuilder(saveUser).
-				WithHook(grepo.NewUseCaseHook[usecase.SaveUserInput, usecase.SaveUserOutput]().AddBefore(func(ctx context.Context, i *usecase.SaveUserInput) (context.Context, error) {
+				AddBeforeHook(func(ctx context.Context, i *usecase.SaveUserInput) (context.Context, error) {
 					if i.Authority != "admin" && i.Authority != "user" {
 						i.Authority = "user"
 					}
 					return ctx, nil
-				})).
+				}).
 				Build(),
 		).
 		Build()
