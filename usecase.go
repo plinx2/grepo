@@ -86,27 +86,11 @@ func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 			return nil, errors.New("context is nil in before hook")
 		}
 	}
-	for _, group := range i.groups {
-		for _, beforeHook := range group.hook.before {
-			ctx, err = beforeHook(ctx, i, input)
-			if err != nil {
-				return nil, err
-			}
-			if ctx == nil {
-				return nil, errors.New("context is nil in group before hook")
-			}
-		}
-	}
 
 	output, err := i.uc.Execute(ctx, input)
 	if err != nil {
 		for _, errorHook := range i.hook.error {
 			errorHook(ctx, input, err)
-		}
-		for _, group := range i.groups {
-			for _, errorHook := range group.hook.error {
-				errorHook(ctx, i, input, err)
-			}
 		}
 		return nil, err
 	}
@@ -114,11 +98,7 @@ func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 	for _, afterHook := range i.hook.after {
 		afterHook(ctx, input, output)
 	}
-	for _, group := range i.groups {
-		for _, afterHook := range group.hook.after {
-			afterHook(ctx, i, input, output)
-		}
-	}
+
 	return output, nil
 }
 
