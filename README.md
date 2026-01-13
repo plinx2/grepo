@@ -34,7 +34,7 @@
 - **実行時イントロスペクション**: リフレクションによる型情報の抽出
 
 ### 🧪 テスト支援
-- **時刻の注入**: `grepo.WithTimeNow()` で決定論的なテストを実現
+- **時刻の注入**: `grepo.WithFixedTime()` で決定論的なテストを実現
 - **モック可能**: インターフェースベースの設計で容易なモック化
 
 ## 📦 インストール
@@ -198,7 +198,7 @@ if errors.Is(err, grepo.ErrValidation) {
 
 ### コンテキストユーティリティ ([context.go](context.go))
 - `ExecuteTime(ctx)` - 実行時刻を取得
-- `WithTimeNow(ctx, time)` - テスト用の固定時刻を注入
+- `WithFixedTime()` - テストに使用できる実行時刻の固定化
 
 ## 💡 ユースケース
 
