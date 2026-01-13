@@ -12,7 +12,7 @@ import (
 )
 
 type UseCaseHook[I any, O any] struct {
-	before []func(ctx context.Context, i I) (context.Context, error)
+	before []func(ctx context.Context, i *I) (context.Context, error)
 	after  []func(ctx context.Context, i I, o *O)
 	error  []func(ctx context.Context, i I, e error)
 }
@@ -21,7 +21,7 @@ func NewUseCaseHook[I any, O any]() *UseCaseHook[I, O] {
 	return &UseCaseHook[I, O]{}
 }
 
-func (h *UseCaseHook[I, O]) AddBefore(hook func(ctx context.Context, i I) (context.Context, error)) *UseCaseHook[I, O] {
+func (h *UseCaseHook[I, O]) AddBefore(hook func(ctx context.Context, i *I) (context.Context, error)) *UseCaseHook[I, O] {
 	h.before = append(h.before, hook)
 	return h
 }
@@ -78,7 +78,7 @@ func newInteractor[I any, O any](uc Executor[I, O]) *Interactor[I, O] {
 func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 	var err error
 	for _, beforeHook := range i.hook.before {
-		ctx, err = beforeHook(ctx, input)
+		ctx, err = beforeHook(ctx, &input)
 		if err != nil {
 			return nil, err
 		}

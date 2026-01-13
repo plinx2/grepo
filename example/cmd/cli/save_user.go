@@ -27,6 +27,6 @@ func init() {
 	saveUserCmd.Flags().StringVar(&saveUserInput.Name, "name", "", "Name of the user to save")
 	saveUserCmd.MarkFlagRequired("name")
 
-	saveUserCmd.Flags().StringVar(&saveUserInput.Authority, "authority", "a", "Authority of the user to save (options: admin, user)")
+	saveUserCmd.Flags().StringVar(&saveUserInput.Authority, "authority", "", "Authority of the user to save (options: admin, user)")
 	saveUserCmd.MarkFlagRequired("authority")
 }

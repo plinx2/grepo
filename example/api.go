@@ -1,6 +1,7 @@
 package example
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -41,6 +42,12 @@ func NewAPI(
 		).
 		WithUseCase(
 			grepo.NewUseCaseBuilder(saveUser).
+				WithHook(grepo.NewUseCaseHook[usecase.SaveUserInput, usecase.SaveUserOutput]().AddBefore(func(ctx context.Context, i *usecase.SaveUserInput) (context.Context, error) {
+					if i.Authority != "admin" && i.Authority != "user" {
+						i.Authority = "user"
+					}
+					return ctx, nil
+				})).
 				Build(),
 		).
 		Build()
