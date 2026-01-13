@@ -149,7 +149,7 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	}
 
 	var err error
-	ctx, err = hookBefore(ctx, uc, input, groups)
+	ctx, err = hookBefore(ctx, uc, ptr.Elem().Interface(), groups)
 	if err != nil {
 		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
 		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
