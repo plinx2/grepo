@@ -14,13 +14,13 @@ type HookSlogOptions struct {
 
 type HookSlogOptionFunc func(*HookSlogOptions)
 
-func WithLevel(level slog.Level) HookSlogOptionFunc {
+func WithSlogLevel(level slog.Level) HookSlogOptionFunc {
 	return func(o *HookSlogOptions) {
 		o.level = level
 	}
 }
 
-func WithMsg(msg string) HookSlogOptionFunc {
+func WithSlogMsg(msg string) HookSlogOptionFunc {
 	return func(o *HookSlogOptions) {
 		o.msg = msg
 	}
