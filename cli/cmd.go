@@ -16,7 +16,9 @@ import (
 
 type apikey struct{}
 
-func New(api *grepo.API, name string) *cobra.Command {
+type SetupFunc func(cmd *cobra.Command, uc grepo.Descriptor)
+
+func New(api *grepo.API, name string, setups ...SetupFunc) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   name,
 		Short: api.Description(),
@@ -29,7 +31,7 @@ func New(api *grepo.API, name string) *cobra.Command {
 	}
 
 	for _, uc := range api.UseCases() {
-		cmd := newUseCaseCommand(uc)
+		cmd := newUseCaseCommand(uc, setups...)
 		rootCmd.AddCommand(cmd)
 	}
 	rootCmd.AddCommand(specCmd(api))
@@ -37,7 +39,7 @@ func New(api *grepo.API, name string) *cobra.Command {
 	return rootCmd
 }
 
-func newUseCaseCommand(uc grepo.Descriptor) *cobra.Command {
+func newUseCaseCommand(uc grepo.Descriptor, setups ...SetupFunc) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   uc.Operation(),
 		Short: uc.Description(),
@@ -89,6 +91,10 @@ func newUseCaseCommand(uc grepo.Descriptor) *cobra.Command {
 	cmd.Long = b.String()
 
 	cmd.Flags().StringP("input", "i", "", "Path to JSON file containing input data")
+
+	for _, setup := range setups {
+		setup(cmd, uc)
+	}
 
 	return cmd
 }
