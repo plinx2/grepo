@@ -72,6 +72,31 @@ func UseCase[I any, O any](api *API, op string) Executor[I, O] {
 	}))
 }
 
+func UseCaseByIO[I any, O any](api *API) Executor[I, O] {
+	return (ExecutorFunc[I, O](func(ctx context.Context, input I) (*O, error) {
+		var uc Descriptor
+		for _, d := range api.UseCases() {
+			interactor, ok := d.(*Interactor[I, O])
+			if ok {
+				uc = interactor
+				break
+			}
+		}
+		if uc == nil {
+			return nil, ErrNotFound
+		}
+		out, err := api.executeUseCase(ctx, uc, input)
+		if err != nil {
+			return nil, err
+		}
+		output, ok := out.(*O)
+		if !ok {
+			return nil, fmt.Errorf("invalid output type")
+		}
+		return output, nil
+	}))
+}
+
 func (a *API) Description() string {
 	return a.description
 }
@@ -95,7 +120,14 @@ func (a *API) ExecuteAny(ctx context.Context, operation string, input any) (any,
 	if !ok {
 		return nil, ErrNotFound
 	}
+	output, err := a.executeUseCase(ctx, uc, input)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
 
+func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any, error) {
 	interactorType := reflect.TypeOf(uc)
 	interactorValue := reflect.ValueOf(uc)
 	for interactorType.Kind() == reflect.Pointer {
