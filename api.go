@@ -134,10 +134,11 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 		interactorType = interactorType.Elem()
 	}
 
-	execute := interactorValue.MethodByName("Execute")
-	if !execute.IsValid() {
-		return nil, ErrNotFound
-	}
+	// Create a pointer to input value
+	ptr := reflect.New(reflect.ValueOf(input).Type())
+	ptr.Elem().Set(reflect.ValueOf(input))
+	inputPtr := ptr.Interface()
+	input = ptr.Elem().Interface()
 
 	groups := append([]*Group{a.root}, uc.Groups()...)
 
@@ -151,37 +152,91 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	ctx, err = hookBefore(ctx, uc, input, groups)
 	if err != nil {
 		hookError(ctx, uc, input, err, groups)
+		a.doErrorHook(ctx, interactorValue, input, err)
+		return nil, err
+	}
+
+	ctx, err = a.doBeforeHook(ctx, interactorValue, inputPtr)
+	if err != nil {
+		hookError(ctx, uc, input, err, groups)
+		a.doErrorHook(ctx, interactorValue, input, err)
 		return nil, err
 	}
 
 	if a.options.enableInputValidation {
 		if err := Validate(input, a.options.customFieldValidators...); err != nil {
 			hookError(ctx, uc, input, err, groups)
+			a.doErrorHook(ctx, interactorValue, input, err)
 			return nil, err
 		}
 	}
 
+	execute := interactorValue.MethodByName("Execute")
+	if !execute.IsValid() {
+		return nil, ErrNotFound
+	}
 	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
 	if len(o) != 2 {
-		return nil, nil
+		return nil, ErrInvalid
 	}
 
 	output := o[0].Interface()
 	err, _ = o[1].Interface().(error)
 	if err != nil {
 		hookError(ctx, uc, input, err, groups)
+		a.doErrorHook(ctx, interactorValue, input, err)
 		return nil, err
 	}
 
 	if a.options.enableOutputValidation {
 		if err := Validate(output, a.options.customFieldValidators...); err != nil {
 			hookError(ctx, uc, input, err, groups)
+			a.doErrorHook(ctx, interactorValue, input, err)
 			return nil, err
 		}
 	}
 
 	hookAfter(ctx, uc, input, output, groups)
+	a.doAfterHook(ctx, interactorValue, input, output)
 	return output, nil
+}
+
+func (a *API) doBeforeHook(ctx context.Context, interactor reflect.Value, input any) (context.Context, error) {
+	doBeforeHook := interactor.MethodByName("DoBeforeHook")
+	if !doBeforeHook.IsValid() {
+		return nil, ErrNotFound
+	}
+
+	o := doBeforeHook.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
+	if len(o) != 2 {
+		return nil, ErrInvalid
+	}
+	ctxInterface, ok := o[0].Interface().(context.Context)
+	if !ok {
+		return ctx, ErrInvalid
+	}
+	ctx = ctxInterface
+	errInterface, ok := o[1].Interface().(error)
+	if ok {
+		return ctx, errInterface
+	}
+	return ctx, nil
+}
+
+func (a *API) doAfterHook(ctx context.Context, interactor reflect.Value, input any, output any) {
+	doAfterHook := interactor.MethodByName("DoAfterHook")
+	if !doAfterHook.IsValid() {
+		return
+	}
+	doAfterHook.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input), reflect.ValueOf(output)})
+}
+
+func (a *API) doErrorHook(ctx context.Context, interactor reflect.Value, input any, e error) {
+	doErrorHook := interactor.MethodByName("DoErrorHook")
+	if !doErrorHook.IsValid() {
+		return
+	}
+	doErrorHook.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input), reflect.ValueOf(e)})
 }
 
 func (a *API) MarshalJSON() ([]byte, error) {

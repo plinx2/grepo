@@ -76,9 +76,13 @@ func newInteractor[I any, O any](uc Executor[I, O]) *Interactor[I, O] {
 }
 
 func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
+	return i.uc.Execute(ctx, input)
+}
+
+func (i *Interactor[I, O]) DoBeforeHook(ctx context.Context, input *I) (context.Context, error) {
 	var err error
 	for _, beforeHook := range i.hook.before {
-		ctx, err = beforeHook(ctx, i, &input)
+		ctx, err = beforeHook(ctx, i, input)
 		if err != nil {
 			return nil, err
 		}
@@ -86,20 +90,19 @@ func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 			return nil, errors.New("context is nil in before hook")
 		}
 	}
+	return ctx, nil
+}
 
-	output, err := i.uc.Execute(ctx, input)
-	if err != nil {
-		for _, errorHook := range i.hook.error {
-			errorHook(ctx, i, input, err)
-		}
-		return nil, err
-	}
-
+func (i *Interactor[I, O]) DoAfterHook(ctx context.Context, input I, output *O) {
 	for _, afterHook := range i.hook.after {
 		afterHook(ctx, i, input, output)
 	}
+}
 
-	return output, nil
+func (i *Interactor[I, O]) DoErrorHook(ctx context.Context, input I, err error) {
+	for _, errorHook := range i.hook.error {
+		errorHook(ctx, i, input, err)
+	}
 }
 
 func (i *Interactor[I, O]) Operation() string {
@@ -186,18 +189,24 @@ func (b *UseCaseBuilder[I, O]) WithHook(hook *UseCaseHook[I, O]) *UseCaseBuilder
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddBeforeHook(hook BeforeHook[*I]) *UseCaseBuilder[I, O] {
-	b.uc.hook.AddBefore(hook)
+func (b *UseCaseBuilder[I, O]) AddBeforeHook(hook func(ctx context.Context, i *I) (context.Context, error)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddBefore(func(ctx context.Context, uc Descriptor, i *I) (context.Context, error) {
+		return hook(ctx, i)
+	})
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddAfterHook(hook AfterHook[I, *O]) *UseCaseBuilder[I, O] {
-	b.uc.hook.AddAfter(hook)
+func (b *UseCaseBuilder[I, O]) AddAfterHook(hook func(ctx context.Context, i I, o O)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddAfter(func(ctx context.Context, uc Descriptor, i I, o *O) {
+		hook(ctx, i, *o)
+	})
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddErrorHook(hook ErrorHook[I]) *UseCaseBuilder[I, O] {
-	b.uc.hook.AddError(hook)
+func (b *UseCaseBuilder[I, O]) AddErrorHook(hook func(ctx context.Context, i I, err error)) *UseCaseBuilder[I, O] {
+	b.uc.hook.AddError(func(ctx context.Context, uc Descriptor, i I, err error) {
+		hook(ctx, i, err)
+	})
 	return b
 }
 

@@ -377,6 +377,42 @@ func TestAPI_WithHooks(t *testing.T) {
 			wantOrder: []string{"before1", "before2", "after1", "after2"},
 			wantErr:   false,
 		},
+		{
+			name: "正常系: ユースケースフック",
+			setupAPI: func(t *testing.T) (*API, *[]string) {
+				order := &[]string{}
+				uc := NewUseCaseBuilder(&addOneUseCase{}).
+					WithOperation("add_one").
+					AddBeforeHook(func(ctx context.Context, i *TestInput) (context.Context, error) {
+						i.Value = 1000
+						*order = append(*order, "before3")
+						return ctx, nil
+					}).
+					Build()
+				api := NewAPIBuilder().
+					AddUseCase(uc).
+					AddBeforeHook(func(ctx context.Context, desc Descriptor, i any) (context.Context, error) {
+						*order = append(*order, "before1")
+						return ctx, nil
+					}).
+					AddBeforeHook(func(ctx context.Context, desc Descriptor, i any) (context.Context, error) {
+						*order = append(*order, "before2")
+						return ctx, nil
+					}).
+					AddAfterHook(func(ctx context.Context, desc Descriptor, i any, o any) {
+						*order = append(*order, "after1")
+					}).
+					AddAfterHook(func(ctx context.Context, desc Descriptor, i any, o any) {
+						*order = append(*order, "after2")
+					}).
+					Build()
+				return api, order
+			},
+			operation: "add_one",
+			input:     TestInput{Value: 1000},
+			wantOrder: []string{"before1", "before2", "before3", "after1", "after2"},
+			wantErr:   false,
+		},
 	}
 
 	for _, tt := range tests {
