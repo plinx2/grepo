@@ -51,29 +51,6 @@ func (g *Group) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + g.name + `"`), nil
 }
 
-func doHookBefore(ctx context.Context, desc Descriptor, input any, hooks []BeforeHook) (context.Context, error) {
-	for _, hook := range hooks {
-		var err error
-		ctx, err = hook(ctx, desc, input)
-		if err != nil {
-			return ctx, err
-		}
-	}
-	return ctx, nil
-}
-
-func doHookAfter(ctx context.Context, desc Descriptor, input any, output any, hooks []AfterHook) {
-	for _, hook := range hooks {
-		hook(ctx, desc, input, output)
-	}
-}
-
-func doHookError(ctx context.Context, desc Descriptor, input any, err error, hooks []ErrorHook) {
-	for _, hook := range hooks {
-		hook(ctx, desc, input, err)
-	}
-}
-
 func hookBefore(ctx context.Context, desc Descriptor, input any, groups []*Group) (context.Context, error) {
 	for _, g := range groups {
 		var err error
