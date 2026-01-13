@@ -53,6 +53,7 @@ func (fn ExecutorFunc[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 
 type Descriptor interface {
 	Operation() string
+	Description() string
 	Input() any
 	Output() any
 	Groups() []string
@@ -61,6 +62,7 @@ type Descriptor interface {
 type Interactor[I any, O any] struct {
 	uc     Executor[I, O]
 	op     string
+	desc   string
 	hook   *UseCaseHook[I, O]
 	groups []*Group
 }
@@ -107,6 +109,10 @@ func (i *Interactor[I, O]) Operation() string {
 		return rt.Name()
 	}
 	return i.op
+}
+
+func (i *Interactor[I, O]) Description() string {
+	return i.desc
 }
 
 func (i *Interactor[I, O]) Input() any {
@@ -169,6 +175,11 @@ func NewUseCaseBuilder[I any, O any](uc Executor[I, O]) *UseCaseBuilder[I, O] {
 
 func (b *UseCaseBuilder[I, O]) WithOperation(name string) *UseCaseBuilder[I, O] {
 	b.uc.op = name
+	return b
+}
+
+func (b *UseCaseBuilder[I, O]) WithDescription(desc string) *UseCaseBuilder[I, O] {
+	b.uc.desc = desc
 	return b
 }
 
