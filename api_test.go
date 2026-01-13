@@ -283,6 +283,7 @@ func TestAPI_WithHooks(t *testing.T) {
 		setupAPI  func(*testing.T) (*API, *[]string)
 		operation string
 		input     any
+		want      *TestOutput
 		wantOrder []string
 		wantErr   bool
 	}{
@@ -304,6 +305,7 @@ func TestAPI_WithHooks(t *testing.T) {
 			},
 			operation: "add_one",
 			input:     TestInput{Value: 5},
+			want:      &TestOutput{Result: 6},
 			wantOrder: []string{"before"},
 			wantErr:   false,
 		},
@@ -324,6 +326,7 @@ func TestAPI_WithHooks(t *testing.T) {
 			},
 			operation: "add_one",
 			input:     TestInput{Value: 5},
+			want:      &TestOutput{Result: 6},
 			wantOrder: []string{"after"},
 			wantErr:   false,
 		},
@@ -344,6 +347,7 @@ func TestAPI_WithHooks(t *testing.T) {
 			},
 			operation: "error_uc",
 			input:     TestInput{Value: 5},
+			want:      nil,
 			wantOrder: []string{"error"},
 			wantErr:   true,
 		},
@@ -375,6 +379,7 @@ func TestAPI_WithHooks(t *testing.T) {
 			},
 			operation: "add_one",
 			input:     TestInput{Value: 5},
+			want:      &TestOutput{Result: 6},
 			wantOrder: []string{"before1", "before2", "after1", "after2"},
 			wantErr:   false,
 		},
@@ -410,7 +415,8 @@ func TestAPI_WithHooks(t *testing.T) {
 				return api, order
 			},
 			operation: "add_one",
-			input:     TestInput{Value: 1000},
+			input:     TestInput{Value: 5},
+			want:      &TestOutput{Result: 1001},
 			wantOrder: []string{"before1", "before2", "before3", "after1", "after2"},
 			wantErr:   false,
 		},
@@ -446,6 +452,7 @@ func TestAPI_WithHooks(t *testing.T) {
 			},
 			operation: "add_one",
 			input:     TestInput{Value: 5},
+			want:      nil,
 			wantOrder: []string{"before1", "before2", "before3", "error1", "error2"},
 			wantErr:   true,
 		},
@@ -454,11 +461,15 @@ func TestAPI_WithHooks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, order := tt.setupAPI(t)
-			_, err := api.ExecuteAny(context.Background(), tt.operation, tt.input)
+			output, err := api.ExecuteAny(context.Background(), tt.operation, tt.input)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ExecuteAny() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+
+			if tt.want != nil && tt.want.Result != output.(*TestOutput).Result {
+				t.Errorf("ExecuteAny() = %v, want %v", output, tt.want)
 			}
 
 			if len(*order) != len(tt.wantOrder) {

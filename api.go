@@ -151,22 +151,22 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	var err error
 	ctx, err = hookBefore(ctx, uc, input, groups)
 	if err != nil {
-		hookError(ctx, uc, input, err, groups)
-		a.doErrorHook(ctx, interactorValue, input, err)
+		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
+		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
 	ctx, err = a.doBeforeHook(ctx, interactorValue, inputPtr)
 	if err != nil {
-		hookError(ctx, uc, input, err, groups)
-		a.doErrorHook(ctx, interactorValue, input, err)
+		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
+		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
 	if a.options.enableInputValidation {
-		if err := Validate(input, a.options.customFieldValidators...); err != nil {
-			hookError(ctx, uc, input, err, groups)
-			a.doErrorHook(ctx, interactorValue, input, err)
+		if err := Validate(ptr.Elem().Interface(), a.options.customFieldValidators...); err != nil {
+			hookError(ctx, uc, ptr.Elem(), err, groups)
+			a.doErrorHook(ctx, interactorValue, ptr.Elem(), err)
 			return nil, err
 		}
 	}
@@ -175,7 +175,7 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	if !execute.IsValid() {
 		return nil, ErrNotFound
 	}
-	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
+	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), ptr.Elem()})
 	if len(o) != 2 {
 		return nil, ErrInvalid
 	}
@@ -183,21 +183,21 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	output := o[0].Interface()
 	err, _ = o[1].Interface().(error)
 	if err != nil {
-		hookError(ctx, uc, input, err, groups)
-		a.doErrorHook(ctx, interactorValue, input, err)
+		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
+		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
 	if a.options.enableOutputValidation {
 		if err := Validate(output, a.options.customFieldValidators...); err != nil {
-			hookError(ctx, uc, input, err, groups)
-			a.doErrorHook(ctx, interactorValue, input, err)
+			hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
+			a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 			return nil, err
 		}
 	}
 
-	hookAfter(ctx, uc, input, output, groups)
-	a.doAfterHook(ctx, interactorValue, input, output)
+	hookAfter(ctx, uc, ptr.Elem().Interface(), output, groups)
+	a.doAfterHook(ctx, interactorValue, ptr.Elem().Interface(), output)
 	return output, nil
 }
 
