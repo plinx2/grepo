@@ -127,7 +127,7 @@ func (a *API) ExecuteAny(ctx context.Context, operation string, input any) (any,
 	return output, nil
 }
 
-func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any, error) {
+func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (output any, err error) {
 	interactorType := reflect.TypeOf(uc)
 	interactorValue := reflect.ValueOf(uc)
 	for interactorType.Kind() == reflect.Pointer {
@@ -141,31 +141,34 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 
 	groups := append([]*Group{a.root}, uc.Groups()...)
 
+	defer func() {
+		if err != nil {
+			output = nil
+			hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
+			a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
+		}
+	}()
+
 	if a.options.fixedTime != nil {
 		ctx = withExecuteTime(ctx, *a.options.fixedTime)
 	} else {
 		ctx = withExecuteTime(ctx, time.Now())
 	}
 
-	var err error
 	ctx, err = hookBefore(ctx, uc, ptr.Elem().Interface(), groups)
 	if err != nil {
-		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
-		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
 	ctx, err = a.doBeforeHook(ctx, interactorValue, inputPtr)
 	if err != nil {
-		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
-		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
+	input = ptr.Elem().Interface()
+
 	if a.options.enableInputValidation {
-		if err := Validate(ptr.Elem().Interface(), a.options.customFieldValidators...); err != nil {
-			hookError(ctx, uc, ptr.Elem(), err, groups)
-			a.doErrorHook(ctx, interactorValue, ptr.Elem(), err)
+		if err = Validate(input, a.options.customFieldValidators...); err != nil {
 			return nil, err
 		}
 	}
@@ -174,29 +177,25 @@ func (a *API) executeUseCase(ctx context.Context, uc Descriptor, input any) (any
 	if !execute.IsValid() {
 		return nil, ErrNotFound
 	}
-	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), ptr.Elem()})
+	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
 	if len(o) != 2 {
 		return nil, ErrInvalid
 	}
 
-	output := o[0].Interface()
+	output = o[0].Interface()
 	err, _ = o[1].Interface().(error)
 	if err != nil {
-		hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
-		a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
 		return nil, err
 	}
 
 	if a.options.enableOutputValidation {
-		if err := Validate(output, a.options.customFieldValidators...); err != nil {
-			hookError(ctx, uc, ptr.Elem().Interface(), err, groups)
-			a.doErrorHook(ctx, interactorValue, ptr.Elem().Interface(), err)
+		if err = Validate(output, a.options.customFieldValidators...); err != nil {
 			return nil, err
 		}
 	}
 
-	hookAfter(ctx, uc, ptr.Elem().Interface(), output, groups)
-	a.doAfterHook(ctx, interactorValue, ptr.Elem().Interface(), output)
+	hookAfter(ctx, uc, input, output, groups)
+	a.doAfterHook(ctx, interactorValue, input, output)
 	return output, nil
 }
 
