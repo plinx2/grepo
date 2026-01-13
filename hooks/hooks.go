@@ -26,7 +26,7 @@ func WithSlogMsg(msg string) HookSlogOptionFunc {
 	}
 }
 
-func HookBeforeSlog(opts ...HookSlogOptionFunc) grepo.BeforeHook {
+func HookBeforeSlog(opts ...HookSlogOptionFunc) grepo.BeforeHook[any] {
 	options := &HookSlogOptions{
 		level: slog.LevelInfo,
 		msg:   "Starting operation",
@@ -40,7 +40,7 @@ func HookBeforeSlog(opts ...HookSlogOptionFunc) grepo.BeforeHook {
 	}
 }
 
-func HookAfterSlog(opts ...HookSlogOptionFunc) grepo.AfterHook {
+func HookAfterSlog(opts ...HookSlogOptionFunc) grepo.AfterHook[any, any] {
 	options := &HookSlogOptions{
 		level: slog.LevelInfo,
 		msg:   "Finished operation",
@@ -53,7 +53,7 @@ func HookAfterSlog(opts ...HookSlogOptionFunc) grepo.AfterHook {
 	}
 }
 
-func HookErrorSlog(opts ...HookSlogOptionFunc) grepo.ErrorHook {
+func HookErrorSlog(opts ...HookSlogOptionFunc) grepo.ErrorHook[any] {
 	options := &HookSlogOptions{
 		level: slog.LevelError,
 		msg:   "Operation error",

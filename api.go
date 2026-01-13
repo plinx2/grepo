@@ -228,17 +228,17 @@ func (b *APIBuilder) WithHook(hook *GroupHook) *APIBuilder {
 	return b
 }
 
-func (b *APIBuilder) AddBeforeHook(hook BeforeHook) *APIBuilder {
+func (b *APIBuilder) AddBeforeHook(hook BeforeHook[any]) *APIBuilder {
 	b.api.root.hook.AddBefore(hook)
 	return b
 }
 
-func (b *APIBuilder) AddAfterHook(hook AfterHook) *APIBuilder {
+func (b *APIBuilder) AddAfterHook(hook AfterHook[any, any]) *APIBuilder {
 	b.api.root.hook.AddAfter(hook)
 	return b
 }
 
-func (b *APIBuilder) AddErrorHook(hook ErrorHook) *APIBuilder {
+func (b *APIBuilder) AddErrorHook(hook ErrorHook[any]) *APIBuilder {
 	b.api.root.hook.AddError(hook)
 	return b
 }

@@ -12,26 +12,26 @@ import (
 )
 
 type UseCaseHook[I any, O any] struct {
-	before []func(ctx context.Context, i *I) (context.Context, error)
-	after  []func(ctx context.Context, i I, o *O)
-	error  []func(ctx context.Context, i I, e error)
+	before []BeforeHook[*I]
+	after  []AfterHook[I, *O]
+	error  []ErrorHook[I]
 }
 
 func NewUseCaseHook[I any, O any]() *UseCaseHook[I, O] {
 	return &UseCaseHook[I, O]{}
 }
 
-func (h *UseCaseHook[I, O]) AddBefore(hook func(ctx context.Context, i *I) (context.Context, error)) *UseCaseHook[I, O] {
+func (h *UseCaseHook[I, O]) AddBefore(hook func(ctx context.Context, uc Descriptor, i *I) (context.Context, error)) *UseCaseHook[I, O] {
 	h.before = append(h.before, hook)
 	return h
 }
 
-func (h *UseCaseHook[I, O]) AddAfter(hook func(ctx context.Context, i I, o *O)) *UseCaseHook[I, O] {
+func (h *UseCaseHook[I, O]) AddAfter(hook func(ctx context.Context, uc Descriptor, i I, o *O)) *UseCaseHook[I, O] {
 	h.after = append(h.after, hook)
 	return h
 }
 
-func (h *UseCaseHook[I, O]) AddError(hook func(ctx context.Context, i I, e error)) *UseCaseHook[I, O] {
+func (h *UseCaseHook[I, O]) AddError(hook func(ctx context.Context, uc Descriptor, i I, e error)) *UseCaseHook[I, O] {
 	h.error = append(h.error, hook)
 	return h
 }
@@ -78,7 +78,7 @@ func newInteractor[I any, O any](uc Executor[I, O]) *Interactor[I, O] {
 func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 	var err error
 	for _, beforeHook := range i.hook.before {
-		ctx, err = beforeHook(ctx, &input)
+		ctx, err = beforeHook(ctx, i, &input)
 		if err != nil {
 			return nil, err
 		}
@@ -90,13 +90,13 @@ func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 	output, err := i.uc.Execute(ctx, input)
 	if err != nil {
 		for _, errorHook := range i.hook.error {
-			errorHook(ctx, input, err)
+			errorHook(ctx, i, input, err)
 		}
 		return nil, err
 	}
 
 	for _, afterHook := range i.hook.after {
-		afterHook(ctx, input, output)
+		afterHook(ctx, i, input, output)
 	}
 
 	return output, nil
@@ -186,17 +186,17 @@ func (b *UseCaseBuilder[I, O]) WithHook(hook *UseCaseHook[I, O]) *UseCaseBuilder
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddBeforeHook(hook func(ctx context.Context, i *I) (context.Context, error)) *UseCaseBuilder[I, O] {
+func (b *UseCaseBuilder[I, O]) AddBeforeHook(hook BeforeHook[*I]) *UseCaseBuilder[I, O] {
 	b.uc.hook.AddBefore(hook)
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddAfterHook(hook func(ctx context.Context, i I, o *O)) *UseCaseBuilder[I, O] {
+func (b *UseCaseBuilder[I, O]) AddAfterHook(hook AfterHook[I, *O]) *UseCaseBuilder[I, O] {
 	b.uc.hook.AddAfter(hook)
 	return b
 }
 
-func (b *UseCaseBuilder[I, O]) AddErrorHook(hook func(ctx context.Context, i I, err error)) *UseCaseBuilder[I, O] {
+func (b *UseCaseBuilder[I, O]) AddErrorHook(hook ErrorHook[I]) *UseCaseBuilder[I, O] {
 	b.uc.hook.AddError(hook)
 	return b
 }

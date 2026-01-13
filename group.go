@@ -2,31 +2,31 @@ package grepo
 
 import "context"
 
-type BeforeHook func(ctx context.Context, desc Descriptor, i any) (context.Context, error)
-type AfterHook func(ctx context.Context, desc Descriptor, i any, o any)
-type ErrorHook func(ctx context.Context, desc Descriptor, i any, e error)
+type BeforeHook[I any] func(ctx context.Context, desc Descriptor, i I) (context.Context, error)
+type AfterHook[I any, O any] func(ctx context.Context, desc Descriptor, i I, o O)
+type ErrorHook[I any] func(ctx context.Context, desc Descriptor, i I, e error)
 
 type GroupHook struct {
-	before []BeforeHook
-	after  []AfterHook
-	error  []ErrorHook
+	before []BeforeHook[any]
+	after  []AfterHook[any, any]
+	error  []ErrorHook[any]
 }
 
 func NewGroupHook() *GroupHook {
 	return &GroupHook{}
 }
 
-func (h *GroupHook) AddBefore(hook BeforeHook) *GroupHook {
+func (h *GroupHook) AddBefore(hook BeforeHook[any]) *GroupHook {
 	h.before = append(h.before, hook)
 	return h
 }
 
-func (h *GroupHook) AddAfter(hook AfterHook) *GroupHook {
+func (h *GroupHook) AddAfter(hook AfterHook[any, any]) *GroupHook {
 	h.after = append(h.after, hook)
 	return h
 }
 
-func (h *GroupHook) AddError(hook ErrorHook) *GroupHook {
+func (h *GroupHook) AddError(hook ErrorHook[any]) *GroupHook {
 	h.error = append(h.error, hook)
 	return h
 }
