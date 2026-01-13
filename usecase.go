@@ -56,7 +56,7 @@ type Descriptor interface {
 	Description() string
 	Input() any
 	Output() any
-	Groups() []string
+	Groups() []*Group
 }
 
 type Interactor[I any, O any] struct {
@@ -69,8 +69,9 @@ type Interactor[I any, O any] struct {
 
 func newInteractor[I any, O any](uc Executor[I, O]) *Interactor[I, O] {
 	return &Interactor[I, O]{
-		uc:   uc,
-		hook: NewUseCaseHook[I, O](),
+		uc:     uc,
+		hook:   NewUseCaseHook[I, O](),
+		groups: make([]*Group, 0),
 	}
 }
 
@@ -85,17 +86,38 @@ func (i *Interactor[I, O]) Execute(ctx context.Context, input I) (*O, error) {
 			return nil, errors.New("context is nil in before hook")
 		}
 	}
+	for _, group := range i.groups {
+		for _, beforeHook := range group.hook.before {
+			ctx, err = beforeHook(ctx, i, input)
+			if err != nil {
+				return nil, err
+			}
+			if ctx == nil {
+				return nil, errors.New("context is nil in group before hook")
+			}
+		}
+	}
 
 	output, err := i.uc.Execute(ctx, input)
 	if err != nil {
 		for _, errorHook := range i.hook.error {
 			errorHook(ctx, input, err)
 		}
+		for _, group := range i.groups {
+			for _, errorHook := range group.hook.error {
+				errorHook(ctx, i, input, err)
+			}
+		}
 		return nil, err
 	}
 
 	for _, afterHook := range i.hook.after {
 		afterHook(ctx, input, output)
+	}
+	for _, group := range i.groups {
+		for _, afterHook := range group.hook.after {
+			afterHook(ctx, i, input, output)
+		}
 	}
 	return output, nil
 }
@@ -125,12 +147,8 @@ func (i *Interactor[I, O]) Output() any {
 	return *output
 }
 
-func (i *Interactor[I, O]) Groups() []string {
-	g := make([]string, 0, len(i.groups))
-	for _, group := range i.groups {
-		g = append(g, group.name)
-	}
-	return g
+func (i *Interactor[I, O]) Groups() []*Group {
+	return i.groups
 }
 
 func (i *Interactor[I, O]) MarshalJSON() ([]byte, error) {

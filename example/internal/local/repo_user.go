@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/plinx2/grepo/example/entity"
 	"github.com/plinx2/grepo/example/port"
@@ -29,6 +31,21 @@ func NewRepoUser(dir string) *RepoUser {
 		path:  path,
 		users: m,
 	}
+}
+
+func (r *RepoUser) FindUsers(ctx context.Context, filter port.FindUsersFilter) ([]*entity.User, error) {
+	result := make([]*entity.User, 0)
+	for _, user := range r.users {
+		if filter.Name != "" && strings.Contains(user.Name, filter.Name) {
+			result = append(result, user)
+			continue
+		}
+		if len(filter.IDs) > 0 && slices.Contains(filter.IDs, user.ID) {
+			result = append(result, user)
+			continue
+		}
+	}
+	return result, nil
 }
 
 func (r *RepoUser) GetUser(ctx context.Context, id string) (*entity.User, error) {

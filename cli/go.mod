@@ -1,11 +1,9 @@
-module github.com/plinx2/grepo/example
+module github.com/plinx2/grepo/cli
 
 go 1.25.3
 
 require (
-	github.com/google/uuid v1.6.0
 	github.com/plinx2/grepo v0.0.0-00010101000000-000000000000
-	github.com/plinx2/grepo/cli v0.0.0-00010101000000-000000000000
 	github.com/spf13/cobra v1.10.2
 )
 
@@ -15,5 +13,3 @@ require (
 )
 
 replace github.com/plinx2/grepo => ../
-
-replace github.com/plinx2/grepo/cli => ../cli

@@ -21,6 +21,7 @@ func NewAPI(
 	rootHook.AddError(hooks.HookErrorSlog())
 
 	return grepo.NewAPIBuilder().
+		WithDescription("API example").
 		WithHook(rootHook).
 		WithOptions(
 			grepo.WithEnableInputValidation(),

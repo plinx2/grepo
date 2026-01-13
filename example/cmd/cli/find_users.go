@@ -24,4 +24,5 @@ var findUsersCmd = &cobra.Command{
 }
 
 func init() {
+	findUsersCmd.Flags().StringVar(&findUsersInput.Name, "name", "", "Filter users whose names contain the specified substring")
 }

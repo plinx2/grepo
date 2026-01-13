@@ -30,7 +30,15 @@ func NewFindUsers(repoUser port.RepoUser) grepo.Executor[FindUsersInput, FindUse
 }
 
 func (uc *FindUsers) Execute(ctx context.Context, input FindUsersInput) (*FindUsersOutput, error) {
+	users, err := uc.repoUser.FindUsers(ctx, port.FindUsersFilter{
+		IDs:  input.IDs,
+		Name: input.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &FindUsersOutput{
-		Users: []*entity.User{},
+		Users: users,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -43,9 +44,10 @@ func WithCustomFieldValidators(validators ...FieldValidator) APIOptionFunc {
 }
 
 type API struct {
-	m       map[string]Descriptor
-	root    *Group
-	options *APIOptions
+	description string
+	m           map[string]Descriptor
+	root        *Group
+	options     *APIOptions
 }
 
 func newAPI() *API {
@@ -58,53 +60,96 @@ func newAPI() *API {
 
 func UseCase[I any, O any](api *API, op string) Executor[I, O] {
 	return (ExecutorFunc[I, O](func(ctx context.Context, input I) (*O, error) {
-		uc, ok := api.m[op]
-		if !ok {
-			return nil, ErrNotFound
-		}
-
-		interactor, ok := uc.(*Interactor[I, O])
-		if !ok {
-			return nil, ErrNotFound
-		}
-
-		if api.options.fixedTime != nil {
-			ctx = withExecuteTime(ctx, *api.options.fixedTime)
-		} else {
-			ctx = withExecuteTime(ctx, time.Now())
-		}
-
-		groups := append([]*Group{api.root}, interactor.groups...)
-
-		ctx, err := hookBefore(ctx, uc, input, groups)
+		out, err := api.ExecuteAny(ctx, op, input)
 		if err != nil {
-			hookError(ctx, uc, input, err, groups)
 			return nil, err
 		}
-
-		if api.options.enableInputValidation {
-			if err := Validate(input, api.options.customFieldValidators...); err != nil {
-				hookError(ctx, uc, input, err, groups)
-				return nil, err
-			}
+		output, ok := out.(*O)
+		if !ok {
+			return nil, fmt.Errorf("invalid output type")
 		}
-
-		output, err := interactor.Execute(ctx, input)
-		if err != nil {
-			hookError(ctx, uc, input, err, groups)
-			return nil, err
-		}
-
-		if api.options.enableOutputValidation {
-			if err := Validate(output, api.options.customFieldValidators...); err != nil {
-				hookError(ctx, uc, input, err, groups)
-				return nil, err
-			}
-		}
-
-		hookAfter(ctx, uc, input, output, groups)
 		return output, nil
 	}))
+}
+
+func (a *API) Description() string {
+	return a.description
+}
+
+func (a *API) UseCases() []Descriptor {
+	keys := make([]string, 0, len(a.m))
+	for key := range a.m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	descs := make([]Descriptor, 0, len(a.m))
+	for _, k := range keys {
+		descs = append(descs, a.m[k])
+	}
+	return descs
+}
+
+func (a *API) ExecuteAny(ctx context.Context, operation string, input any) (any, error) {
+	uc, ok := a.m[operation]
+	if !ok {
+		return nil, ErrNotFound
+	}
+
+	interactorType := reflect.TypeOf(uc)
+	interactorValue := reflect.ValueOf(uc)
+	for interactorType.Kind() == reflect.Pointer {
+		interactorType = interactorType.Elem()
+	}
+
+	execute := interactorValue.MethodByName("Execute")
+	if !execute.IsValid() {
+		return nil, ErrNotFound
+	}
+
+	groups := append([]*Group{a.root}, uc.Groups()...)
+
+	if a.options.fixedTime != nil {
+		ctx = withExecuteTime(ctx, *a.options.fixedTime)
+	} else {
+		ctx = withExecuteTime(ctx, time.Now())
+	}
+
+	var err error
+	ctx, err = hookBefore(ctx, uc, input, groups)
+	if err != nil {
+		hookError(ctx, uc, input, err, groups)
+		return nil, err
+	}
+
+	if a.options.enableInputValidation {
+		if err := Validate(input, a.options.customFieldValidators...); err != nil {
+			hookError(ctx, uc, input, err, groups)
+			return nil, err
+		}
+	}
+
+	o := execute.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(input)})
+	if len(o) != 2 {
+		return nil, nil
+	}
+
+	output := o[0].Interface()
+	err, _ = o[1].Interface().(error)
+	if err != nil {
+		hookError(ctx, uc, input, err, groups)
+		return nil, err
+	}
+
+	if a.options.enableOutputValidation {
+		if err := Validate(output, a.options.customFieldValidators...); err != nil {
+			hookError(ctx, uc, input, err, groups)
+			return nil, err
+		}
+	}
+
+	hookAfter(ctx, uc, input, output, groups)
+	return output, nil
 }
 
 func (a *API) MarshalJSON() ([]byte, error) {
@@ -118,14 +163,12 @@ func (a *API) MarshalJSON() ([]byte, error) {
 
 	b.WriteString("{")
 
-	for i, k := range keys {
+	for i, d := range a.UseCases() {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		d := a.m[k]
-
 		ucJSON, _ := json.Marshal(d)
-		b.WriteString(fmt.Sprintf("%q: %s", k, ucJSON))
+		b.WriteString(fmt.Sprintf("%q: %s", d.Operation(), ucJSON))
 	}
 
 	b.WriteString("}")
@@ -141,6 +184,11 @@ func NewAPIBuilder() *APIBuilder {
 	return &APIBuilder{
 		api: newAPI(),
 	}
+}
+
+func (b *APIBuilder) WithDescription(desc string) *APIBuilder {
+	b.api.description = desc
+	return b
 }
 
 func (b *APIBuilder) WithHook(hook *GroupHook) *APIBuilder {
